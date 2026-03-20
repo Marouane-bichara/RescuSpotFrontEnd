@@ -1,0 +1,100 @@
+<section class="relative min-h-screen overflow-hidden bg-slate-950 text-slate-100">
+  <div class="pointer-events-none absolute inset-0">
+    <div class="absolute -left-20 -top-20 h-72 w-72 rounded-full bg-fuchsia-500/20 blur-3xl"></div>
+    <div class="absolute -bottom-20 -right-20 h-80 w-80 rounded-full bg-cyan-500/20 blur-3xl"></div>
+  </div>
+
+  <div class="relative mx-auto flex min-h-screen max-w-7xl items-center justify-center px-4 py-10 sm:px-6 lg:px-8">
+    <div class="w-full max-w-3xl rounded-3xl border border-white/10 bg-white/5 p-6 shadow-2xl backdrop-blur-xl sm:p-8">
+      <div class="mb-6">
+        <p class="inline-flex rounded-full border border-fuchsia-400/30 bg-fuchsia-400/10 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-fuchsia-300">
+          Shelter Account
+        </p>
+        <h2 class="mt-4 text-3xl font-bold text-white">Register as Shelter</h2>
+        <p class="mt-2 text-sm text-slate-300">Create your shelter profile for rescue coordination.</p>
+      </div>
+
+      <form class="space-y-5" [formGroup]="registerForm" (ngSubmit)="onSubmit()">
+        <div class="grid gap-4 sm:grid-cols-2">
+          <div>
+            <label class="mb-2 block text-sm font-medium text-slate-200" for="username">Username</label>
+            <input id="username" type="text" formControlName="username" class="w-full rounded-xl border border-white/15 bg-slate-900/70 px-4 py-3 text-sm text-white outline-none transition focus:border-fuchsia-400 focus:ring-2 focus:ring-fuchsia-400/30" />
+            @if (hasFieldError('username')) {
+              <p class="mt-2 text-xs text-rose-300">Username is required (min 3 chars).</p>
+            }
+          </div>
+          <div>
+            <label class="mb-2 block text-sm font-medium text-slate-200" for="email">Email</label>
+            <input id="email" type="email" formControlName="email" class="w-full rounded-xl border border-white/15 bg-slate-900/70 px-4 py-3 text-sm text-white outline-none transition focus:border-fuchsia-400 focus:ring-2 focus:ring-fuchsia-400/30" />
+            @if (hasFieldError('email')) {
+              <p class="mt-2 text-xs text-rose-300">Valid email is required.</p>
+            }
+          </div>
+        </div>
+
+        <div>
+          <label class="mb-2 block text-sm font-medium text-slate-200" for="password">Password</label>
+          <input id="password" type="password" formControlName="password" class="w-full rounded-xl border border-white/15 bg-slate-900/70 px-4 py-3 text-sm text-white outline-none transition focus:border-fuchsia-400 focus:ring-2 focus:ring-fuchsia-400/30" />
+          @if (hasFieldError('password')) {
+            <p class="mt-2 text-xs text-rose-300">Password is required (min 6 chars).</p>
+          }
+        </div>
+
+        <div>
+          <label class="mb-2 block text-sm font-medium text-slate-200" for="name">Shelter name</label>
+          <input id="name" type="text" formControlName="name" class="w-full rounded-xl border border-white/15 bg-slate-900/70 px-4 py-3 text-sm text-white outline-none transition focus:border-fuchsia-400 focus:ring-2 focus:ring-fuchsia-400/30" />
+          @if (hasFieldError('name')) {
+            <p class="mt-2 text-xs text-rose-300">Shelter name is required.</p>
+          }
+        </div>
+
+        <div>
+          <label class="mb-2 block text-sm font-medium text-slate-200" for="description">Description</label>
+          <textarea id="description" formControlName="description" rows="4" class="w-full rounded-xl border border-white/15 bg-slate-900/70 px-4 py-3 text-sm text-white outline-none transition focus:border-fuchsia-400 focus:ring-2 focus:ring-fuchsia-400/30"></textarea>
+          @if (hasFieldError('description')) {
+            <p class="mt-2 text-xs text-rose-300">Description is required.</p>
+          }
+        </div>
+
+        <div class="grid gap-4 sm:grid-cols-2">
+          <div>
+            <label class="mb-2 block text-sm font-medium text-slate-200" for="location">Location</label>
+            <input id="location" type="text" formControlName="location" class="w-full rounded-xl border border-white/15 bg-slate-900/70 px-4 py-3 text-sm text-white outline-none transition focus:border-fuchsia-400 focus:ring-2 focus:ring-fuchsia-400/30" />
+            @if (hasFieldError('location')) {
+              <p class="mt-2 text-xs text-rose-300">Location is required.</p>
+            }
+          </div>
+          <div>
+            <label class="mb-2 block text-sm font-medium text-slate-200" for="phone">Phone</label>
+            <input id="phone" type="text" formControlName="phone" class="w-full rounded-xl border border-white/15 bg-slate-900/70 px-4 py-3 text-sm text-white outline-none transition focus:border-fuchsia-400 focus:ring-2 focus:ring-fuchsia-400/30" />
+            @if (hasFieldError('phone')) {
+              <p class="mt-2 text-xs text-rose-300">Phone is required.</p>
+            }
+          </div>
+        </div>
+
+        <div>
+          <label class="mb-2 block text-sm font-medium text-slate-200" for="address">Address</label>
+          <input id="address" type="text" formControlName="address" class="w-full rounded-xl border border-white/15 bg-slate-900/70 px-4 py-3 text-sm text-white outline-none transition focus:border-fuchsia-400 focus:ring-2 focus:ring-fuchsia-400/30" />
+          @if (hasFieldError('address')) {
+            <p class="mt-2 text-xs text-rose-300">Address is required.</p>
+          }
+        </div>
+
+        @if (errorMessage()) {
+          <p class="rounded-xl border border-rose-400/40 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">{{ errorMessage() }}</p>
+        }
+
+        @if (successMessage()) {
+          <p class="rounded-xl border border-emerald-400/40 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">{{ successMessage() }}</p>
+        }
+
+        <button type="submit" [disabled]="isSubmitting()" [class.opacity-60]="isSubmitting()" [class.cursor-not-allowed]="isSubmitting()" class="w-full rounded-xl bg-gradient-to-r from-fuchsia-500 to-cyan-600 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-fuchsia-500/25 transition hover:brightness-110">
+          {{ isSubmitting() ? 'Creating account...' : 'Register shelter' }}
+        </button>
+
+        <a routerLink="/login" class="block text-center text-sm font-semibold text-cyan-300 transition hover:text-cyan-200">Back to login</a>
+      </form>
+    </div>
+  </div>
+</section>
