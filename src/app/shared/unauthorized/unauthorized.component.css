@@ -1,0 +1,28 @@
+.error-page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+h1 {
+  font-size: 72px;
+  margin: 0;
+  color: #c33;
+}
+
+p {
+  font-size: 24px;
+  margin: 10px 0 30px;
+}
+
+a {
+  color: #667eea;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+a:hover {
+  text-decoration: underline;
+}
