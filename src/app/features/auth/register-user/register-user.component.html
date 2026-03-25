@@ -56,16 +56,16 @@
           }
         </div>
 
-        @if (errorMessage()) {
-          <p class="rounded-xl border border-rose-400/40 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">{{ errorMessage() }}</p>
+        @if (errorMessage) {
+          <p class="rounded-xl border border-rose-400/40 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">{{ errorMessage }}</p>
         }
 
-        @if (successMessage()) {
-          <p class="rounded-xl border border-emerald-400/40 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">{{ successMessage() }}</p>
+        @if (successMessage) {
+          <p class="rounded-xl border border-emerald-400/40 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">{{ successMessage }}</p>
         }
 
-        <button type="submit" [disabled]="isSubmitting()" [class.opacity-60]="isSubmitting()" [class.cursor-not-allowed]="isSubmitting()" class="w-full rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-cyan-500/25 transition hover:brightness-110">
-          {{ isSubmitting() ? 'Creating account...' : 'Register user' }}
+        <button type="submit" [disabled]="isSubmitting" [class.opacity-60]="isSubmitting" [class.cursor-not-allowed]="isSubmitting" class="w-full rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-cyan-500/25 transition hover:brightness-110">
+          {{ isSubmitting ? 'Creating account...' : 'Register user' }}
         </button>
 
         <a routerLink="/login" class="block text-center text-sm font-semibold text-cyan-300 transition hover:text-cyan-200">Back to login</a>

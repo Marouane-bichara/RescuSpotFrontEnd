@@ -13,8 +13,8 @@ export interface UserRegisterRequest {
 export interface ShelterRegisterRequest {
   account: AccountRequest;
   name: string;
-  description: string;
-  location: string;
-  phone: string;
-  address: string;
+  description?: string;
+  location?: string;
+  phone?: string;
+  address?: string;
 }

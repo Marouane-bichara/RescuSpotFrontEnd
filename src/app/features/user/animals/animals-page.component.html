@@ -1,0 +1,57 @@
+@if (isLoadingAnimals) {
+  <div class="rounded-3xl border border-cyan-300/20 bg-slate-900/70 p-6 text-sm text-slate-300 shadow-xl">
+    Loading animals...
+  </div>
+} @else if (animalsForAdoption.length === 0) {
+  <div class="rounded-3xl border border-cyan-300/20 bg-slate-900/70 p-6 text-sm text-slate-300 shadow-xl">
+    No animals available for adoption right now.
+  </div>
+} @else {
+  <div class="grid gap-6 sm:grid-cols-2 2xl:grid-cols-3">
+    @for (animal of animalsForAdoption; track animal.idAnimal) {
+      <article class="group overflow-hidden rounded-3xl border border-white/10 bg-slate-900/80 shadow-2xl ring-1 ring-white/5 transition duration-300 hover:-translate-y-1 hover:border-cyan-300/40 hover:shadow-cyan-900/40">
+        @if (hasAnimalPicture(animal)) {
+          <img [src]="getAnimalPicture(animal)" alt="Animal picture" class="h-56 w-full object-cover transition duration-300 group-hover:scale-[1.04]" />
+        } @else {
+          <div class="flex h-56 w-full items-center justify-center bg-slate-900 text-sm text-slate-400">
+            No image uploaded
+          </div>
+        }
+
+        <div class="space-y-4 p-5">
+          <div class="flex items-start justify-between gap-2">
+            <div class="flex flex-wrap gap-2">
+              <span class="rounded-full border border-cyan-300/30 bg-cyan-500/20 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-cyan-200">{{ animal.species }}</span>
+              <span class="rounded-full border border-white/10 bg-white/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-slate-200">{{ animal.breed }}</span>
+            </div>
+
+            <span class="rounded-full bg-emerald-500/20 px-3 py-1 text-[11px] font-semibold text-emerald-300">
+              Available
+            </span>
+          </div>
+
+          <div>
+            <h3 class="text-xl font-bold text-white">{{ animal.name }}</h3>
+            <p class="mt-1 text-sm text-slate-300">{{ animal.gender }} • {{ animal.age }} years</p>
+          </div>
+
+          <p class="min-h-10 line-clamp-2 text-sm leading-6 text-slate-400">{{ animal.description }}</p>
+
+          @if (getPendingRequestsCount(animal) > 0) {
+            <div class="rounded-xl border border-amber-300/25 bg-amber-500/10 px-3 py-2 text-xs font-semibold text-amber-200">
+              {{ getPendingRequestsCount(animal) }} pending requests
+            </div>
+          }
+
+          <button
+            type="button"
+            (click)="adopt.emit(animal)"
+            class="w-full rounded-2xl bg-gradient-to-r from-cyan-500 via-sky-500 to-emerald-500 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-cyan-900/40 transition hover:brightness-110"
+          >
+            Adopt now
+          </button>
+        </div>
+      </article>
+    }
+  </div>
+}

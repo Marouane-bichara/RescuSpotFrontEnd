@@ -1,0 +1,76 @@
+<div class="grid gap-4 md:grid-cols-3">
+  <article class="rounded-2xl border border-white/10 bg-white/5 p-5">
+    <p class="text-sm text-slate-400">Pending</p>
+    <p class="mt-2 text-3xl font-bold text-amber-300">{{ pendingCount }}</p>
+    <p class="mt-2 text-sm text-slate-300">Pending review</p>
+  </article>
+  <article class="rounded-2xl border border-white/10 bg-white/5 p-5">
+    <p class="text-sm text-slate-400">Approved</p>
+    <p class="mt-2 text-3xl font-bold text-emerald-300">{{ approvedCount }}</p>
+    <p class="mt-2 text-sm text-slate-300">Accepted requests</p>
+  </article>
+  <article class="rounded-2xl border border-white/10 bg-white/5 p-5">
+    <p class="text-sm text-slate-400">Rejected</p>
+    <p class="mt-2 text-3xl font-bold text-rose-300">{{ rejectedCount }}</p>
+    <p class="mt-2 text-sm text-slate-300">Declined requests</p>
+  </article>
+</div>
+
+@if (isLoadingAdoptions) {
+  <div class="mt-4 rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-slate-300">
+    Loading adoptions...
+  </div>
+} @else if (adoptions.length === 0) {
+  <div class="mt-4 rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-slate-300">
+    You have not applied to any adoptions yet.
+  </div>
+} @else {
+  <div class="mt-4 grid gap-4 sm:grid-cols-2">
+    @for (adoption of adoptions; track adoption.idAdoption) {
+      <article class="rounded-2xl border border-white/10 bg-white/5 p-4">
+        <div class="flex items-center gap-3">
+          <button
+            type="button"
+            (click)="toggleShelterActions(adoption)"
+            class="rounded-full focus:outline-none focus:ring-2 focus:ring-cyan-400/40"
+            title="Click to show shelter actions"
+          >
+            <img
+              [src]="getShelterPhoto(adoption)"
+              alt="Shelter picture"
+              class="h-12 w-12 rounded-full border border-white/20 object-cover"
+            />
+          </button>
+
+          <div>
+            <p class="text-sm text-slate-400">Shelter</p>
+            <p class="font-semibold text-white">{{ getShelterName(adoption) }}</p>
+          </div>
+        </div>
+
+        <div class="mt-4 space-y-1 text-sm text-slate-300">
+          <p><span class="text-slate-400">Animal:</span> {{ adoption.animal?.name || 'Unknown animal' }}</p>
+          <p><span class="text-slate-400">Status:</span> {{ adoption.status }}</p>
+          <p><span class="text-slate-400">Date:</span> {{ adoption.requestDate | date:'mediumDate' }}</p>
+        </div>
+
+        @if (isShelterActionsOpen(adoption)) {
+          <div class="mt-3 rounded-xl border border-cyan-400/30 bg-cyan-500/10 p-3">
+            <button
+              type="button"
+              (click)="onMessageShelter(adoption)"
+              class="inline-flex rounded-lg bg-cyan-500 px-3 py-2 text-sm font-semibold text-white hover:brightness-110"
+            >
+              Message shelter
+            </button>
+            @if (getShelterEmail(adoption)) {
+              <p class="mt-2 text-xs text-slate-300">Email: {{ getShelterEmail(adoption) }}</p>
+            }
+          </div>
+        }
+
+        <p class="mt-3 text-xs text-cyan-300">Tip: click the shelter photo to see contact details.</p>
+      </article>
+    }
+  </div>
+}

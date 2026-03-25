@@ -33,6 +33,11 @@ export const routes: Routes = [
   },
   {
     path: 'user',
+    redirectTo: 'user/animals',
+    pathMatch: 'full'
+  },
+  {
+    path: 'user/:section',
     canActivate: [authGuard, roleGuard(['USER'])],
     component: UserDashboardComponent
   },
@@ -43,7 +48,16 @@ export const routes: Routes = [
   },
   {
     path: 'shelter',
+    redirectTo: 'shelter/animals',
+    pathMatch: 'full'
+  },
+  {
+    path: 'shelter/:section',
     canActivate: [authGuard, roleGuard(['SHELTER'])],
     component: ShelterDashboardComponent
+  },
+  {
+    path: '**',
+    redirectTo: '/login'
   }
 ];

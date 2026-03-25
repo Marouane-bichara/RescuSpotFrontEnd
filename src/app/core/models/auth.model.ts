@@ -13,6 +13,7 @@ export interface JwtPayload {
   iat?: number;
   role?: string;
   roles?: string[];
+  authorities?: string[];
   firstName?: string;
   lastName?: string;
   [key: string]: unknown;

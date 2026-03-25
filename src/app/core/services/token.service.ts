@@ -6,8 +6,8 @@ import { AppUser, JwtPayload } from '../models/auth.model';
 })
 export class TokenService {
 
-  private readonly TOKEN_KEY = 'token';
-  private readonly USER_KEY = 'user';
+  private TOKEN_KEY = 'token';
+  private USER_KEY = 'user';
 
   saveToken(token: string): void {
     sessionStorage.setItem(this.TOKEN_KEY, token);

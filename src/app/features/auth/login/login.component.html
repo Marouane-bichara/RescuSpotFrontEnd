@@ -71,20 +71,20 @@
 							<span class="text-xs text-slate-400">Secure login</span>
 						</div>
 
-						@if (errorMessage()) {
+						@if (errorMessage) {
 							<p class="rounded-xl border border-rose-400/40 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">
-								{{ errorMessage() }}
+								{{ errorMessage }}
 							</p>
 						}
 
 						<button
 							type="submit"
-							[disabled]="isSubmitting()"
-							[class.opacity-60]="isSubmitting()"
-							[class.cursor-not-allowed]="isSubmitting()"
+							[disabled]="isSubmitting"
+							[class.opacity-60]="isSubmitting"
+							[class.cursor-not-allowed]="isSubmitting"
 							class="w-full rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-cyan-500/25 transition hover:brightness-110"
 						>
-							{{ isSubmitting() ? 'Signing in...' : 'Sign in' }}
+							{{ isSubmitting ? 'Signing in...' : 'Sign in' }}
 						</button>
 					</form>
 

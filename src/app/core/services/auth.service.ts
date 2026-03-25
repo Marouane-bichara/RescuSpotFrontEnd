@@ -1,4 +1,4 @@
-import { Injectable, inject, signal } from '@angular/core';
+import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { Observable, tap } from 'rxjs';
@@ -10,12 +10,17 @@ import { AppUser, AuthResponse, JwtPayload, LoginRequest } from '../models/auth.
   providedIn: 'root'
 })
 export class AuthService {
-  private http = inject(HttpClient);
-  private router = inject(Router);
-  private tokenService = inject(TokenService);
+  currentUser: AppUser | null;
+  isAuthenticated: boolean;
 
-  currentUser = signal<AppUser | null>(this.tokenService.getUser());
-  isAuthenticated = signal<boolean>(this.tokenService.isTokenValid());
+  constructor(
+    private http: HttpClient,
+    private router: Router,
+    private tokenService: TokenService
+  ) {
+    this.currentUser = this.tokenService.getUser();
+    this.isAuthenticated = this.tokenService.isTokenValid();
+  }
 
   login(email: string, password: string): Observable<AuthResponse> {
     const payload: LoginRequest = { email, password };
@@ -30,33 +35,57 @@ export class AuthService {
 
           this.tokenService.saveUser(user);
 
-          this.currentUser.set(user);
-          this.isAuthenticated.set(this.tokenService.isTokenValid());
+          this.currentUser = user;
+          this.isAuthenticated = this.tokenService.isTokenValid();
         })
       );
   }
 
   logout(): void {
-    this.tokenService.clear();
-    this.currentUser.set(null);
-    this.isAuthenticated.set(false);
-    this.router.navigate(['/login']);
+    this.http.post<{ message?: string }>(`${environment.apiUrl}/auth/logout`, {}).subscribe({
+      next: () => this.finishLogout(),
+      error: () => this.finishLogout()
+    });
   }
 
   hasRole(role: string): boolean {
-    const user = this.currentUser();
-    const normalizedRole = role.toUpperCase();
-    return user?.roles?.some((userRole) => userRole.toUpperCase() === normalizedRole) || false;
+    const user = this.currentUser;
+    const normalizedRole = this.normalizeRole(role);
+    return user?.roles?.some((userRole) => this.normalizeRole(userRole) === normalizedRole) || false;
+  }
+
+  getCurrentUser(): AppUser | null {
+    return this.currentUser;
   }
 
   private mapPayloadToUser(decoded: JwtPayload | null, fallbackEmail: string): AppUser {
-    const extractedRoles = decoded?.roles ?? (decoded?.role ? [decoded.role] : ['USER']);
+    const roleCandidates = [
+      ...(decoded?.roles ?? []),
+      ...(decoded?.['authorities'] ?? []),
+      ...(decoded?.role ? [decoded.role] : [])
+    ];
+
+    const extractedRoles = roleCandidates.length > 0 ? roleCandidates : ['USER'];
 
     return {
       email: (decoded?.sub as string) || fallbackEmail,
-      roles: extractedRoles.map((role) => role.toUpperCase()),
+      roles: extractedRoles
+        .map((role) => this.normalizeRole(String(role)))
+        .filter((role, index, arr) => !!role && arr.indexOf(role) === index),
       firstName: (decoded?.firstName as string) || fallbackEmail.split('@')[0],
       lastName: (decoded?.lastName as string) || ''
     };
+  }
+
+  private normalizeRole(role: string): string {
+    const value = (role || '').toUpperCase().trim();
+    return value.startsWith('ROLE_') ? value.substring(5) : value;
+  }
+
+  private finishLogout(): void {
+    this.tokenService.clear();
+    this.currentUser = null;
+    this.isAuthenticated = false;
+    this.router.navigate(['/login']);
   }
 }

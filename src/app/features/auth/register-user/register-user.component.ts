@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, inject, signal } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
 import { finalize } from 'rxjs';
@@ -18,11 +18,11 @@ export class RegisterUserComponent {
   private registerService = inject(RegisterService);
   private router = inject(Router);
 
-  readonly isSubmitting = signal(false);
-  readonly errorMessage = signal<string | null>(null);
-  readonly successMessage = signal<string | null>(null);
+  isSubmitting = false;
+  errorMessage: string | null = null;
+  successMessage: string | null = null;
 
-  readonly registerForm = this.fb.nonNullable.group({
+  registerForm = this.fb.nonNullable.group({
     username: ['', [Validators.required, Validators.minLength(3)]],
     firstName: ['', [Validators.required]],
     lastName: ['', [Validators.required]],
@@ -31,7 +31,7 @@ export class RegisterUserComponent {
   });
 
   onSubmit(): void {
-    if (this.registerForm.invalid || this.isSubmitting()) {
+    if (this.registerForm.invalid || this.isSubmitting) {
       this.registerForm.markAllAsTouched();
       return;
     }
@@ -47,21 +47,21 @@ export class RegisterUserComponent {
       lastName: formValue.lastName
     };
 
-    this.errorMessage.set(null);
-    this.successMessage.set(null);
-    this.isSubmitting.set(true);
+    this.errorMessage = null;
+    this.successMessage = null;
+    this.isSubmitting = true;
 
     this.registerService.registerUser(payload)
-      .pipe(finalize(() => this.isSubmitting.set(false)))
+      .pipe(finalize(() => this.isSubmitting = false))
       .subscribe({
         next: () => {
-          this.successMessage.set('Account created successfully. You can now sign in.');
+          this.successMessage = 'Account created successfully. You can now sign in.';
           this.registerForm.reset();
           this.router.navigateByUrl('/login');
         },
         error: (err) => {
           const message = err?.error?.message || 'Unable to create user account.';
-          this.errorMessage.set(message);
+          this.errorMessage = message;
         }
       });
   }
