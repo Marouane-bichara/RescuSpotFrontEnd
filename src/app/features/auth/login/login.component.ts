@@ -43,12 +43,12 @@ export class LoginComponent {
           const user = this.authService.getCurrentUser();
           const roles = user?.roles ?? [];
 
-          if (roles.includes('ADMIN')) {
+          if (this.hasRole(roles, 'ADMIN')) {
             this.router.navigateByUrl('/admin');
             return;
           }
 
-          if (roles.includes('SHELTER')) {
+          if (this.hasRole(roles, 'SHELTER')) {
             this.router.navigateByUrl('/shelter/animals');
             return;
           }
@@ -65,6 +65,16 @@ export class LoginComponent {
   hasFieldError(field: 'email' | 'password'): boolean {
     const control = this.loginForm.controls[field];
     return control.invalid && (control.touched || control.dirty);
+  }
+
+  private hasRole(roles: string[], expectedRole: string): boolean {
+    for (const role of roles) {
+      if (role === expectedRole) {
+        return true;
+      }
+    }
+
+    return false;
   }
 
 }

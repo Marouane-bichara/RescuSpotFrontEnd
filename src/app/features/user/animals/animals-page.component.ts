@@ -15,7 +15,15 @@ export class UserAnimalsPageComponent {
 
   getPendingRequestsCount(animal: AnimalResponse): number {
     const adoptions = animal.adoptions || [];
-    return adoptions.filter((adoption) => this.normalizeStatus(adoption.status) === 'PENDING').length;
+    let count = 0;
+
+    for (const adoption of adoptions) {
+      if (this.normalizeStatus(adoption.status) === 'PENDING') {
+        count++;
+      }
+    }
+
+    return count;
   }
 
   hasAnimalPicture(animal: AnimalResponse): boolean {

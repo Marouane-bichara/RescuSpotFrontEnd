@@ -1,11 +1,10 @@
 import { Component, Input, OnChanges, OnDestroy, SimpleChanges, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { Subscription, finalize } from 'rxjs';
+import { Subscription, finalize, interval } from 'rxjs';
 import { ConversationType } from '../../../core/models/conversation.model';
 import { MessageRequest, MessageResponse } from '../../../core/models/message.model';
 import { ShelterResponse } from '../../../core/models/shelter.model';
 import { UserResponse } from '../../../core/models/user.model';
-import { ChatWebsocketService } from '../../../core/services/chat-websocket.service';
 import { MessageService } from '../../../core/services/message.service';
 
 interface ChatContactItem {
@@ -30,7 +29,6 @@ export class UserMessagesPageComponent implements OnChanges, OnDestroy {
   @Input() localImageServerUrl = 'http://localhost:8090';
 
   private messageService = inject(MessageService);
-  private chatWebsocketService = inject(ChatWebsocketService);
 
   contacts: ChatContactItem[] = [];
   selectedContact: ChatContactItem | null = null;
@@ -41,16 +39,25 @@ export class UserMessagesPageComponent implements OnChanges, OnDestroy {
   isLoadingContacts = false;
   chatError = '';
 
-  private conversationByPeerAccount = new Map<number, number>();
-  private realtimeSub: Subscription | null = null;
+  private conversationPairs: { peerAccountId: number; conversationId: number }[] = [];
+  private pollingSub: Subscription | null = null;
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['currentUserAccountId']) {
-      this.loadContactsFromConversations();
+      this.refreshContacts(true);
+
+      if (this.currentUserAccountId) {
+        this.startPolling();
+      } else {
+        this.stopPolling();
+        this.contacts = [];
+        this.messages = [];
+        this.selectedContact = null;
+      }
     }
 
     if (changes['shelters'] && this.currentUserAccountId) {
-      this.loadContactsFromConversations();
+      this.refreshContacts(false);
     }
 
     if (changes['openShelterId']) {
@@ -67,15 +74,14 @@ export class UserMessagesPageComponent implements OnChanges, OnDestroy {
   }
 
   ngOnDestroy(): void {
-    this.realtimeSub?.unsubscribe();
-    this.chatWebsocketService.disconnect();
+    this.stopPolling();
   }
 
   selectContact(contact: ChatContactItem): void {
     this.selectedContact = contact;
     this.chatError = '';
     this.messages = [];
-    this.loadSelectedConversation();
+    this.refreshMessages(true);
   }
 
   sendMessage(): void {
@@ -103,12 +109,11 @@ export class UserMessagesPageComponent implements OnChanges, OnDestroy {
         this.draftMessage = '';
 
         if (response.conversationId) {
-          this.conversationByPeerAccount.set(selectedContact.peerAccountId, response.conversationId);
-          this.subscribeRealtime(response.conversationId);
+          this.setConversationId(selectedContact.peerAccountId, response.conversationId);
         }
 
-        this.pushIfNew(response);
-        this.chatWebsocketService.sendMessage(payload);
+        this.refreshMessages(false);
+        this.refreshContacts(false);
       },
       error: (error) => {
         this.chatError = error?.error?.message || 'Could not send message.';
@@ -147,32 +152,58 @@ export class UserMessagesPageComponent implements OnChanges, OnDestroy {
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   }
 
-  private loadContactsFromConversations(): void {
+  private refreshContacts(showLoader: boolean): void {
     if (!this.currentUserAccountId) {
       return;
     }
 
-    this.isLoadingContacts = true;
+    if (showLoader) {
+      this.isLoadingContacts = true;
+    }
+
     this.messageService.getUserConversations(this.currentUserAccountId).pipe(
-      finalize(() => this.isLoadingContacts = false)
+      finalize(() => {
+        if (showLoader) {
+          this.isLoadingContacts = false;
+        }
+      })
     ).subscribe({
       next: (conversations) => {
-        this.conversationByPeerAccount.clear();
-
         const nextContacts: ChatContactItem[] = [];
+        const nextPairs: { peerAccountId: number; conversationId: number }[] = [];
 
         for (const conversation of conversations || []) {
           const peerAccountId = conversation.receiverId;
-          if (!peerAccountId || !conversation.idConversation) {
+          const conversationId = conversation.idConversation;
+
+          if (!peerAccountId || !conversationId) {
             continue;
           }
 
-          this.conversationByPeerAccount.set(peerAccountId, conversation.idConversation);
+          let pairExists = false;
+          for (const pair of nextPairs) {
+            if (pair.peerAccountId === peerAccountId) {
+              pairExists = true;
+              break;
+            }
+          }
+
+          if (!pairExists) {
+            nextPairs.push({ peerAccountId, conversationId });
+          }
 
           const shelter = this.findShelterByAccountId(peerAccountId);
           const user = this.findUserByAccountId(peerAccountId);
-          const exists = nextContacts.some((item) => item.peerAccountId === peerAccountId);
-          if (exists) {
+
+          let contactExists = false;
+          for (const item of nextContacts) {
+            if (item.peerAccountId === peerAccountId) {
+              contactExists = true;
+              break;
+            }
+          }
+
+          if (contactExists) {
             continue;
           }
 
@@ -184,9 +215,37 @@ export class UserMessagesPageComponent implements OnChanges, OnDestroy {
           });
         }
 
+        this.conversationPairs = nextPairs;
         this.contacts = nextContacts;
+
         this.openShelterFromInput();
         this.openUserFromInput();
+
+        if (!this.selectedContact && this.contacts.length > 0) {
+          this.selectedContact = this.contacts[0];
+          this.refreshMessages(true);
+          return;
+        }
+
+        if (this.selectedContact) {
+          const selectedId = this.selectedContact.peerAccountId;
+          let stillExists: ChatContactItem | null = null;
+
+          for (const item of this.contacts) {
+            if (item.peerAccountId === selectedId) {
+              stillExists = item;
+              break;
+            }
+          }
+
+          if (stillExists) {
+            this.selectedContact = stillExists;
+            this.refreshMessages(false);
+          } else {
+            this.selectedContact = null;
+            this.messages = [];
+          }
+        }
       },
       error: () => {
         this.contacts = [];
@@ -194,28 +253,31 @@ export class UserMessagesPageComponent implements OnChanges, OnDestroy {
     });
   }
 
-  private loadSelectedConversation(): void {
+  private refreshMessages(showLoader: boolean): void {
     if (!this.selectedContact) {
+      this.messages = [];
       return;
     }
 
-    const conversationId = this.conversationByPeerAccount.get(this.selectedContact.peerAccountId);
+    const conversationId = this.getConversationId(this.selectedContact.peerAccountId);
     if (!conversationId) {
-      this.realtimeSub?.unsubscribe();
+      this.messages = [];
       return;
     }
 
-    this.loadConversation(conversationId);
-  }
+    if (showLoader) {
+      this.isLoadingMessages = true;
+    }
 
-  private loadConversation(conversationId: number): void {
-    this.isLoadingMessages = true;
     this.messageService.getConversationMessages(conversationId).pipe(
-      finalize(() => this.isLoadingMessages = false)
+      finalize(() => {
+        if (showLoader) {
+          this.isLoadingMessages = false;
+        }
+      })
     ).subscribe({
       next: (messages) => {
         this.messages = messages || [];
-        this.subscribeRealtime(conversationId);
       },
       error: (error) => {
         this.chatError = error?.error?.message || 'Could not load messages.';
@@ -223,34 +285,26 @@ export class UserMessagesPageComponent implements OnChanges, OnDestroy {
     });
   }
 
-  private subscribeRealtime(conversationId: number): void {
-    this.realtimeSub?.unsubscribe();
-    this.realtimeSub = this.chatWebsocketService.subscribeToConversation(conversationId).subscribe({
-      next: (message) => {
-        this.pushIfNew(message);
-      }
-    });
-  }
-
-  private pushIfNew(message: MessageResponse): void {
-    const exists = this.messages.some((item) => item.idMessage === message.idMessage);
-    if (!exists) {
-      this.messages = [...this.messages, message];
-    }
-  }
-
   private findShelterByAccountId(accountId: number): ShelterResponse | undefined {
-    return this.shelters.find((shelter) => {
+    for (const shelter of this.shelters) {
       const id = shelter.accountId || shelter.account?.idAccount;
-      return id === accountId;
-    });
+      if (id === accountId) {
+        return shelter;
+      }
+    }
+
+    return undefined;
   }
 
   private findUserByAccountId(accountId: number): UserResponse | undefined {
-    return this.users.find((user) => {
+    for (const user of this.users) {
       const id = user.accountId || user.account?.idAccount;
-      return id === accountId;
-    });
+      if (id === accountId) {
+        return user;
+      }
+    }
+
+    return undefined;
   }
 
   private getUserDisplayName(user: UserResponse | undefined): string {
@@ -267,13 +321,13 @@ export class UserMessagesPageComponent implements OnChanges, OnDestroy {
       return;
     }
 
-    const shelter = this.shelters.find((item) => item.idShelter === this.openShelterId);
+    const shelter = this.findShelterById(this.openShelterId);
     const peerAccountId = shelter?.accountId || shelter?.account?.idAccount;
     if (!peerAccountId) {
       return;
     }
 
-    let contact = this.contacts.find((item) => item.peerAccountId === peerAccountId);
+    let contact = this.findContactByPeerAccountId(this.contacts, peerAccountId);
 
     if (!contact) {
       contact = {
@@ -298,7 +352,7 @@ export class UserMessagesPageComponent implements OnChanges, OnDestroy {
       return;
     }
 
-    let contact = this.contacts.find((item) => item.peerAccountId === accountId);
+    let contact = this.findContactByPeerAccountId(this.contacts, accountId);
 
     if (!contact) {
       const user = this.findUserByAccountId(accountId);
@@ -313,9 +367,64 @@ export class UserMessagesPageComponent implements OnChanges, OnDestroy {
     }
 
     if (this.selectedContact?.peerAccountId === accountId) {
+      this.refreshMessages(true);
       return;
     }
 
     this.selectContact(contact);
+  }
+
+  private findShelterById(shelterId: number): ShelterResponse | undefined {
+    for (const shelter of this.shelters) {
+      if (shelter.idShelter === shelterId) {
+        return shelter;
+      }
+    }
+
+    return undefined;
+  }
+
+  private findContactByPeerAccountId(contacts: ChatContactItem[], peerAccountId: number): ChatContactItem | undefined {
+    for (const item of contacts) {
+      if (item.peerAccountId === peerAccountId) {
+        return item;
+      }
+    }
+
+    return undefined;
+  }
+
+  private getConversationId(peerAccountId: number): number | null {
+    for (const pair of this.conversationPairs) {
+      if (pair.peerAccountId === peerAccountId) {
+        return pair.conversationId;
+      }
+    }
+
+    return null;
+  }
+
+  private setConversationId(peerAccountId: number, conversationId: number): void {
+    for (const pair of this.conversationPairs) {
+      if (pair.peerAccountId === peerAccountId) {
+        pair.conversationId = conversationId;
+        return;
+      }
+    }
+
+    this.conversationPairs.push({ peerAccountId, conversationId });
+  }
+
+  private startPolling(): void {
+    this.stopPolling();
+
+    this.pollingSub = interval(3000).subscribe(() => {
+      this.refreshContacts(false);
+    });
+  }
+
+  private stopPolling(): void {
+    this.pollingSub?.unsubscribe();
+    this.pollingSub = null;
   }
 }

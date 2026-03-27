@@ -75,6 +75,12 @@ export class UserAdoptionsPageComponent {
       return undefined;
     }
 
-    return this.shelters.find((shelter) => shelter.idShelter === shelterId);
+    for (const shelter of this.shelters) {
+      if (shelter.idShelter === shelterId) {
+        return shelter;
+      }
+    }
+
+    return undefined;
   }
 }

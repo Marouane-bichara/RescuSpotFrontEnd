@@ -15,7 +15,15 @@ export const roleGuard = (allowedRoles: string[]): CanActivateFn => {
 			return false;
 		}
 
-		const isAllowed = allowedRoles.some((role) => authService.hasRole(role));
+		let isAllowed = false;
+
+		for (const role of allowedRoles) {
+			if (authService.hasRole(role)) {
+				isAllowed = true;
+				break;
+			}
+		}
+
 		if (isAllowed) {
 			return true;
 		}

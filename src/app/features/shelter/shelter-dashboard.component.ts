@@ -71,7 +71,6 @@ export class ShelterDashboardComponent implements OnInit {
   private shelterService = inject(ShelterService);
   private authService = inject(AuthService);
 
-  // Simple page state
   sidebarOpen = false;
   activeSection: ShelterDashboardSection = 'animals';
 
@@ -133,8 +132,13 @@ export class ShelterDashboardComponent implements OnInit {
   }
 
   getSectionTitle(): string {
-    const current = this.sidebarItems.find((item) => item.key === this.activeSection);
-    return current ? current.label : 'Dashboard';
+    for (const item of this.sidebarItems) {
+      if (item.key === this.activeSection) {
+        return item.label;
+      }
+    }
+
+    return 'Dashboard';
   }
 
   logout(): void {
@@ -162,10 +166,15 @@ export class ShelterDashboardComponent implements OnInit {
 
     this.shelterService.getAllShelters().subscribe({
       next: (shelters) => {
-        const shelter = shelters.find((item) => {
+        let shelter: ShelterResponse | undefined;
+
+        for (const item of shelters) {
           const itemEmail = (item.email || item.account?.email || '').toLowerCase();
-          return itemEmail === email.toLowerCase();
-        });
+          if (itemEmail === email.toLowerCase()) {
+            shelter = item;
+            break;
+          }
+        }
 
         if (!shelter) {
           this.pageError = 'Shelter profile was not found for this account.';
@@ -194,7 +203,15 @@ export class ShelterDashboardComponent implements OnInit {
     this.animalService.getAllAnimals().subscribe({
       next: (animals) => {
         const shelterId = this.currentShelter?.idShelter;
-        this.myAnimals = (animals || []).filter((animal) => animal.shelter?.idShelter === shelterId);
+        const mine: AnimalResponse[] = [];
+
+        for (const animal of animals || []) {
+          if (animal.shelter?.idShelter === shelterId) {
+            mine.push(animal);
+          }
+        }
+
+        this.myAnimals = mine;
         this.isLoading = false;
       },
       error: (error) => {
@@ -213,26 +230,30 @@ export class ShelterDashboardComponent implements OnInit {
 
     this.adoptionService.getAllAdoptions().subscribe({
       next: (adoptions) => {
-        const requests = (adoptions || [])
-          .filter((adoption) => adoption.shelter?.idShelter === shelterId)
-          .map((adoption) => {
+        const requests: ShelterAdoptionRequestItem[] = [];
+
+        for (const adoption of adoptions || []) {
+          if (adoption.shelter?.idShelter !== shelterId) {
+            continue;
+          }
+
             const firstName = adoption.user?.firstName || '';
             const lastName = adoption.user?.lastName || '';
             const fullName = `${firstName} ${lastName}`.trim();
 
-            return {
-              idAdoption: adoption.idAdoption || null,
-              animalId: adoption.animal?.idAnimal || 0,
-              animalName: adoption.animal?.name || 'Unknown animal',
-              requesterName: fullName || adoption.user?.account?.email || 'Unknown user',
-              requesterAccountId: adoption.user?.account?.idAccount || null,
-              requesterPhoto: adoption.user?.account?.profilePhoto || '',
-              status: (adoption.status || 'PENDING').toUpperCase(),
-              requestDate: adoption.requestDate ? String(adoption.requestDate) : ''
-            };
+          requests.push({
+            idAdoption: adoption.idAdoption || null,
+            animalId: adoption.animal?.idAnimal || 0,
+            animalName: adoption.animal?.name || 'Unknown animal',
+            requesterName: fullName || adoption.user?.account?.email || 'Unknown user',
+            requesterAccountId: adoption.user?.account?.idAccount || null,
+            requesterPhoto: adoption.user?.account?.profilePhoto || '',
+            status: (adoption.status || 'PENDING').toUpperCase(),
+            requestDate: adoption.requestDate ? String(adoption.requestDate) : ''
           });
+        }
 
-        this.myAdoptionRequests = requests.sort((a, b) => b.requestDate.localeCompare(a.requestDate));
+        this.myAdoptionRequests = this.sortRequestsByDateDescSimple(requests);
         this.loadUsersFromRequests();
       },
       error: () => {
@@ -270,12 +291,19 @@ export class ShelterDashboardComponent implements OnInit {
       return this.myAnimals;
     }
 
-    return this.myAnimals.filter((animal) => {
+    const filtered: AnimalResponse[] = [];
+
+    for (const animal of this.myAnimals) {
       const name = (animal.name || '').toLowerCase();
       const species = (animal.species || '').toLowerCase();
       const breed = (animal.breed || '').toLowerCase();
-      return name.includes(text) || species.includes(text) || breed.includes(text);
-    });
+
+      if (name.indexOf(text) >= 0 || species.indexOf(text) >= 0 || breed.indexOf(text) >= 0) {
+        filtered.push(animal);
+      }
+    }
+
+    return filtered;
   }
 
   openCreateAnimalModal(): void {
@@ -412,7 +440,15 @@ export class ShelterDashboardComponent implements OnInit {
   }
 
   getRequestsCount(status: 'PENDING' | 'APPROVED' | 'REJECTED'): number {
-    return this.myAdoptionRequests.filter((item) => item.status === status).length;
+    let count = 0;
+
+    for (const item of this.myAdoptionRequests) {
+      if (item.status === status) {
+        count++;
+      }
+    }
+
+    return count;
   }
 
   loadUsers(): void {
@@ -482,7 +518,15 @@ export class ShelterDashboardComponent implements OnInit {
 
       seen.add(accountId);
 
-      const parts = (request.requesterName || '').trim().split(/\s+/).filter(Boolean);
+      const rawParts = (request.requesterName || '').trim().split(/\s+/);
+      const parts: string[] = [];
+
+      for (const rawPart of rawParts) {
+        if (rawPart) {
+          parts.push(rawPart);
+        }
+      }
+
       const firstName = parts.length > 0 ? parts[0] : `User`;
       const lastName = parts.length > 1 ? parts.slice(1).join(' ') : '';
 
@@ -499,5 +543,28 @@ export class ShelterDashboardComponent implements OnInit {
     }
 
     this.users = mappedUsers;
+  }
+
+  private sortRequestsByDateDescSimple(list: ShelterAdoptionRequestItem[]): ShelterAdoptionRequestItem[] {
+    const sorted: ShelterAdoptionRequestItem[] = [];
+
+    for (const item of list) {
+      sorted.push(item);
+    }
+
+    for (let i = 0; i < sorted.length; i++) {
+      for (let j = i + 1; j < sorted.length; j++) {
+        const left = sorted[i].requestDate || '';
+        const right = sorted[j].requestDate || '';
+
+        if (right > left) {
+          const temp = sorted[i];
+          sorted[i] = sorted[j];
+          sorted[j] = temp;
+        }
+      }
+    }
+
+    return sorted;
   }
 }

@@ -61,8 +61,15 @@ export class UserReportsPageComponent implements OnChanges {
       finalize(() => this.isLoading.set(false))
     ).subscribe({
       next: (allReports) => {
-        const mine = (allReports || []).filter((report) => report.userId === this.currentUserId);
-        this.reports.set(mine.sort((a, b) => String(b.reportedAt).localeCompare(String(a.reportedAt))));
+        const mine: ReportResponse[] = [];
+
+        for (const report of allReports || []) {
+          if (report.userId === this.currentUserId) {
+            mine.push(report);
+          }
+        }
+
+        this.reports.set(this.sortReportsByDateDescSimple(mine));
       },
       error: (error) => {
         this.pageError.set(error?.error?.message || 'Could not load reports.');
@@ -122,14 +129,27 @@ export class UserReportsPageComponent implements OnChanges {
     try {
       const newPhotoPaths: string[] = [];
 
-      for (const file of Array.from(files)) {
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
         const fileName = `${Date.now()}-${file.name.replace(/\s+/g, '-')}`;
         const dataUrl = await this.readFileAsDataUrl(file);
         const path = await this.uploadImageToLocalServer(fileName, dataUrl);
         newPhotoPaths.push(path);
       }
 
-      this.uploadedPhotos.update((current) => [...current, ...newPhotoPaths]);
+      this.uploadedPhotos.update((current) => {
+        const merged: string[] = [];
+
+        for (const value of current) {
+          merged.push(value);
+        }
+
+        for (const value of newPhotoPaths) {
+          merged.push(value);
+        }
+
+        return merged;
+      });
     } catch {
       this.formError.set('Could not upload photo. Make sure local image server is running.');
     } finally {
@@ -139,7 +159,17 @@ export class UserReportsPageComponent implements OnChanges {
   }
 
   removePhoto(path: string): void {
-    this.uploadedPhotos.update((current) => current.filter((item) => item !== path));
+    this.uploadedPhotos.update((current) => {
+      const next: string[] = [];
+
+      for (const item of current) {
+        if (item !== path) {
+          next.push(item);
+        }
+      }
+
+      return next;
+    });
   }
 
   getPhotoUrl(path: string): string {
@@ -224,5 +254,28 @@ export class UserReportsPageComponent implements OnChanges {
 
     const result = await response.json();
     return String(result.path || '');
+  }
+
+  private sortReportsByDateDescSimple(list: ReportResponse[]): ReportResponse[] {
+    const sorted: ReportResponse[] = [];
+
+    for (const item of list) {
+      sorted.push(item);
+    }
+
+    for (let i = 0; i < sorted.length; i++) {
+      for (let j = i + 1; j < sorted.length; j++) {
+        const left = String(sorted[i].reportedAt || '');
+        const right = String(sorted[j].reportedAt || '');
+
+        if (right > left) {
+          const temp = sorted[i];
+          sorted[i] = sorted[j];
+          sorted[j] = temp;
+        }
+      }
+    }
+
+    return sorted;
   }
 }

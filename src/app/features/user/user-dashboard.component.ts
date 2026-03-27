@@ -105,8 +105,13 @@ export class UserDashboardComponent implements OnInit {
   }
 
   getSectionTitle(): string {
-    const current = this.sidebarItems.find((item) => item.key === this.activeSection);
-    return current ? current.label : 'Dashboard';
+    for (const item of this.sidebarItems) {
+      if (item.key === this.activeSection) {
+        return item.label;
+      }
+    }
+
+    return 'Dashboard';
   }
 
   logout(): void {
@@ -144,10 +149,15 @@ export class UserDashboardComponent implements OnInit {
       next: (users) => {
         this.users = users || [];
 
-        const user = users.find((u) => {
+        let user: UserResponse | undefined;
+
+        for (const u of users) {
           const accountEmail = u.account?.email || '';
-          return accountEmail.toLowerCase() === email.toLowerCase();
-        });
+          if (accountEmail.toLowerCase() === email.toLowerCase()) {
+            user = u;
+            break;
+          }
+        }
 
         if (!user) {
           return;
@@ -170,7 +180,15 @@ export class UserDashboardComponent implements OnInit {
         if (!this.currentUserId) {
           this.myAdoptions = [];
         } else {
-          this.myAdoptions = (adoptions || []).filter((adoption) => adoption.user?.idUser === this.currentUserId);
+          const mine: AdoptionResponse[] = [];
+
+          for (const adoption of adoptions || []) {
+            if (adoption.user?.idUser === this.currentUserId) {
+              mine.push(adoption);
+            }
+          }
+
+          this.myAdoptions = mine;
         }
         this.isLoadingAdoptions = false;
       },
@@ -192,18 +210,40 @@ export class UserDashboardComponent implements OnInit {
   }
 
   getAnimalsForAdoption(): AnimalResponse[] {
-    return this.animals.filter((animal) => this.isAnimalAvailable(animal));
+    const result: AnimalResponse[] = [];
+
+    for (const animal of this.animals) {
+      if (this.isAnimalAvailable(animal)) {
+        result.push(animal);
+      }
+    }
+
+    return result;
   }
 
   isAnimalAvailable(animal: AnimalResponse): boolean {
     const adoptions = animal.adoptions || [];
-    const hasApprovedAdoption = adoptions.some((adoption) => this.normalizeStatus(adoption.status) === 'APPROVED');
-    return !hasApprovedAdoption;
+
+    for (const adoption of adoptions) {
+      if (this.normalizeStatus(adoption.status) === 'APPROVED') {
+        return false;
+      }
+    }
+
+    return true;
   }
 
   getPendingRequestsCount(animal: AnimalResponse): number {
     const adoptions = animal.adoptions || [];
-    return adoptions.filter((adoption) => this.normalizeStatus(adoption.status) === 'PENDING').length;
+    let count = 0;
+
+    for (const adoption of adoptions) {
+      if (this.normalizeStatus(adoption.status) === 'PENDING') {
+        count++;
+      }
+    }
+
+    return count;
   }
 
   openAdoptionModal(animal: AnimalResponse): void {
@@ -276,7 +316,15 @@ export class UserDashboardComponent implements OnInit {
   }
 
   getMyAdoptionsCount(status: 'PENDING' | 'APPROVED' | 'REJECTED'): number {
-    return this.myAdoptions.filter((adoption) => this.normalizeStatus(adoption.status) === status).length;
+    let count = 0;
+
+    for (const adoption of this.myAdoptions) {
+      if (this.normalizeStatus(adoption.status) === status) {
+        count++;
+      }
+    }
+
+    return count;
   }
 
   openMessagesForShelter(adoption: AdoptionResponse): void {

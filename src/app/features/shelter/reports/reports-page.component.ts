@@ -43,7 +43,7 @@ export class ShelterReportsPageComponent {
       finalize(() => this.isLoading.set(false))
     ).subscribe({
       next: (data) => {
-        const all = (data || []).sort((a, b) => String(b.reportedAt).localeCompare(String(a.reportedAt)));
+        const all = this.sortReportsByDateDescSimple(data || []);
         this.reports.set(all);
 
         const selectedMap: Record<number, ReportStatus> = {};
@@ -69,14 +69,28 @@ export class ShelterReportsPageComponent {
       return this.reports();
     }
 
-    return this.reports().filter((report) => {
+    const list = this.reports();
+    const result: ReportResponse[] = [];
+
+    for (const report of list) {
       const location = (report.location || '').toLowerCase();
       const description = (report.description || '').toLowerCase();
       const status = (report.reportStatus || '').toLowerCase();
       const health = (report.healthStatus || '').toLowerCase();
       const reporter = `${report.userFirstName || ''} ${report.userLastName || ''}`.trim().toLowerCase();
-      return location.includes(text) || description.includes(text) || status.includes(text) || health.includes(text) || reporter.includes(text);
-    });
+
+      if (
+        this.containsText(location, text) ||
+        this.containsText(description, text) ||
+        this.containsText(status, text) ||
+        this.containsText(health, text) ||
+        this.containsText(reporter, text)
+      ) {
+        result.push(report);
+      }
+    }
+
+    return result;
   }
 
   getSelectedStatus(reportId: number): ReportStatus {
@@ -144,16 +158,22 @@ export class ShelterReportsPageComponent {
       next: (updatedReport) => {
         const updatedStatus = this.normalizeReportStatus(updatedReport?.reportStatus || nextStatus);
 
-        this.reports.update((current) => current.map((item) => {
-          if (this.getReportId(item) !== reportId) {
-            return item;
+        this.reports.update((current) => {
+          const updated: ReportResponse[] = [];
+
+          for (const item of current) {
+            if (this.getReportId(item) !== reportId) {
+              updated.push(item);
+            } else {
+              updated.push({
+                ...item,
+                reportStatus: updatedStatus
+              });
+            }
           }
 
-          return {
-            ...item,
-            reportStatus: updatedStatus
-          };
-        }));
+          return updated;
+        });
 
         this.setSelectedStatus(reportId, updatedStatus);
         this.pageSuccess.set(`Report #${reportId} status updated to ${updatedStatus}.`);
@@ -206,8 +226,48 @@ export class ShelterReportsPageComponent {
 
   private normalizeReportStatus(value: ReportStatus | string | null | undefined): ReportStatus {
     const normalized = String(value || '').toUpperCase().trim();
-    return this.statusOptions.includes(normalized as ReportStatus)
-      ? (normalized as ReportStatus)
-      : 'PENDING';
+
+    if (this.isValidStatus(normalized)) {
+      return normalized as ReportStatus;
+    }
+
+    return 'PENDING';
+  }
+
+  private containsText(source: string, text: string): boolean {
+    return source.indexOf(text) >= 0;
+  }
+
+  private isValidStatus(status: string): boolean {
+    for (const option of this.statusOptions) {
+      if (option === status) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  private sortReportsByDateDescSimple(list: ReportResponse[]): ReportResponse[] {
+    const sorted: ReportResponse[] = [];
+
+    for (const item of list) {
+      sorted.push(item);
+    }
+
+    for (let i = 0; i < sorted.length; i++) {
+      for (let j = i + 1; j < sorted.length; j++) {
+        const left = String(sorted[i].reportedAt || '');
+        const right = String(sorted[j].reportedAt || '');
+
+        if (right > left) {
+          const temp = sorted[i];
+          sorted[i] = sorted[j];
+          sorted[j] = temp;
+        }
+      }
+    }
+
+    return sorted;
   }
 }

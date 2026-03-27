@@ -51,7 +51,18 @@ export class AuthService {
   hasRole(role: string): boolean {
     const user = this.currentUser;
     const normalizedRole = this.normalizeRole(role);
-    return user?.roles?.some((userRole) => this.normalizeRole(userRole) === normalizedRole) || false;
+
+    if (!user?.roles) {
+      return false;
+    }
+
+    for (const userRole of user.roles) {
+      if (this.normalizeRole(userRole) === normalizedRole) {
+        return true;
+      }
+    }
+
+    return false;
   }
 
   getCurrentUser(): AppUser | null {
@@ -66,12 +77,30 @@ export class AuthService {
     ];
 
     const extractedRoles = roleCandidates.length > 0 ? roleCandidates : ['USER'];
+    const normalizedRoles: string[] = [];
+
+    for (const rawRole of extractedRoles) {
+      const normalizedRole = this.normalizeRole(String(rawRole));
+      if (!normalizedRole) {
+        continue;
+      }
+
+      let alreadyExists = false;
+      for (const existingRole of normalizedRoles) {
+        if (existingRole === normalizedRole) {
+          alreadyExists = true;
+          break;
+        }
+      }
+
+      if (!alreadyExists) {
+        normalizedRoles.push(normalizedRole);
+      }
+    }
 
     return {
       email: (decoded?.sub as string) || fallbackEmail,
-      roles: extractedRoles
-        .map((role) => this.normalizeRole(String(role)))
-        .filter((role, index, arr) => !!role && arr.indexOf(role) === index),
+      roles: normalizedRoles,
       firstName: (decoded?.firstName as string) || fallbackEmail.split('@')[0],
       lastName: (decoded?.lastName as string) || ''
     };

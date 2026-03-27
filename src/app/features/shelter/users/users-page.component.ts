@@ -19,24 +19,35 @@ export class ShelterUsersPageComponent {
 
   getFilteredUsers(): UserResponse[] {
     const text = this.searchText.trim().toLowerCase();
+    const result: UserResponse[] = [];
 
-    return this.users
-      .filter((user) => {
-        const accountId = user.accountId || user.account?.idAccount;
-        return !!accountId && accountId !== this.currentAccountId;
-      })
-      .filter((user) => {
-        if (!text) {
-          return true;
-        }
+    for (const user of this.users) {
+      const accountId = user.accountId || user.account?.idAccount;
+      if (!accountId || accountId === this.currentAccountId) {
+        continue;
+      }
 
-        const firstName = (user.firstName || '').toLowerCase();
-        const lastName = (user.lastName || '').toLowerCase();
-        const username = (user.account?.username || '').toLowerCase();
-        const email = (user.account?.email || '').toLowerCase();
+      if (!text) {
+        result.push(user);
+        continue;
+      }
 
-        return firstName.includes(text) || lastName.includes(text) || username.includes(text) || email.includes(text);
-      });
+      const firstName = (user.firstName || '').toLowerCase();
+      const lastName = (user.lastName || '').toLowerCase();
+      const username = (user.account?.username || '').toLowerCase();
+      const email = (user.account?.email || '').toLowerCase();
+
+      if (
+        firstName.indexOf(text) >= 0 ||
+        lastName.indexOf(text) >= 0 ||
+        username.indexOf(text) >= 0 ||
+        email.indexOf(text) >= 0
+      ) {
+        result.push(user);
+      }
+    }
+
+    return result;
   }
 
   getDisplayName(user: UserResponse): string {
